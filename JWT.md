@@ -14,8 +14,8 @@
 
 ```
 1. 사용자 인증을 진행한다.
-2. 사용자 인증이 성공되면, 비밀키로 JWT를 생성한다.
-3. JWT를 클라이언트에게 응답에 포함하여 제공한다.
+2. 비밀키로 JWT를 생성한다.
+3. 사용자 인증이 성공되면 클라이언트에 응답으로 제공한다.
 4. 클라이언트는 서버 재접근시 Authorization 헤더에 JWT를 포함하여 요청한다.
 5. 서버는 JWT로 인증 여부를 확인한다.
 6. 사용자에게 응답을 해준다.
@@ -61,4 +61,124 @@ Claims claims = Jwts.parser()
 
 String mid = claims.get("mid", String.class);
 String authority = claims.get("authority", String.class));
+```
+
+## 🍨JWT Session에 저장
+> 로그인이 성공되면, browser의 sessionStorage에 jwt를 저장한다.
+```java
+@RequestMapping("/login1")
+public Map<String, String> login1(String mid, String mpassword) {
+	log.info("실행");
+	if(mid == null || mpassword == null) {
+		throw new BadCredentialsException("아이디 또는 비밀번호가 제공되지 않았음"); 
+		// spring security에서 아이디랑 비밀번호가 맞지 않은 경우 BadCredentialsException 발생
+	}
+	
+	/*
+	 * spring security 사용자 인증
+	 */
+	// 아이디와 패스워드를 통해 토큰을 만든다
+	UsernamePasswordAuthenticationToken token = new UsernamePasswordAuthenticationToken(mid, mpassword); 
+	// 아이디와 패스워드를 통해 만든 토큰을 통해 인증을 진행하여 성공 여부를 갖는다. 실패하면 401 에러를 발생시킨다.
+	Authentication authentication  = authenticationManager.authenticate(token); 
+	SecurityContext securityContext = SecurityContextHolder.getContext();
+	securityContext.setAuthentication(authentication);
+	
+	// 사용자 권한 얻기
+	String authority = authentication.getAuthorities().iterator().next().toString();
+	
+	Map<String, String> map = new HashMap<>();
+	map.put("result", "sucess");
+	map.put("mid", mid);
+	map.put("jwt", JwtUtil.createToken(mid, authority));
+	return map;
+}
+```
+
+```javascript
+function login1() {
+	var mid = $("#loginForm [name=mid]").val();
+	var mpassword = $("#loginForm [name=mpassword]").val();
+	$.ajax({
+		url: "[(@{/member/login1})]",
+		method: "post",
+		data: {mid, mpassword}
+	}).done((data) => {
+		console.log(data);
+		sessionStorage.setItem("mid", data.mid);
+	    sessionStorage.setItem("jwt", data.jwt);
+	});
+}
+```
+
+## 🍦JWT Filter 추가
+> 로그인을 한 이후에는, sessionStorage에 있는 jwt를 request header에 포함하여 요청을 보낸다.
+> 이때, jwt가 유효한 것인지 판단하기 위해서, **filter**를 추가한다.
+
+#### WebSecurityConfig.java
+```java
+@Override
+protected void configure(HttpSecurity http) throws Exception {	
+	...
+	//JwtCheckFilter 추가
+	JwtCheckFilter jwtCheckFilter = new JwtCheckFilter();
+	// UsernamePasswordAuthenticationFilter라는 필터 앞에 jwtCheckFilter를 추가한다.
+	// jwtCheckFilter에서 인증이 성공되면, UsernamePasswordAuthenticationFilter를 건너뛴다.
+	http.addFilterBefore(jwtCheckFilter, UsernamePasswordAuthenticationFilter.class); 
+	...
+}	
+```
+#### JwtCheckFilter.java
+```java
+package com.mycompany.webapp.security;
+
+import java.io.IOException;
+
+import javax.servlet.FilterChain;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.authority.AuthorityUtils;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.filter.OncePerRequestFilter;
+
+import io.jsonwebtoken.Claims;
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
+public class JwtCheckFilter extends OncePerRequestFilter {
+
+	@Override
+	protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
+			throws ServletException, IOException {
+
+		String jwt = null;
+		if (request.getHeader("Authorization") != null && request.getHeader("Authorization").startsWith("Bearer")) {
+			jwt = request.getHeader("Authorization").substring(7);
+		}else if(request.getParameter("jwt") != null) { 	// <img src="url?jwt=xxx" /> 일 때 처리
+			jwt = request.getParameter("jwt");
+		}
+
+		if (jwt != null) {
+			// jwt 유효성 검사
+			Claims claims = JwtUtil.validateToken(jwt);
+			if (claims != null) {
+				String mid = JwtUtil.getMid(claims);
+				String authority = JwtUtil.getAuthority(claims);
+
+				// security 인증 처리
+				// 아이디와 권한을 전달하여 객체를 만든다. 
+				UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(mid, null, AuthorityUtils.createAuthorityList(authority));
+				SecurityContext securityContext = SecurityContextHolder.getContext();
+				securityContext.setAuthentication(authentication);
+			}
+		}
+		// 다음 필터를 실행
+		filterChain.doFilter(request, response);
+	}
+}
 ```
