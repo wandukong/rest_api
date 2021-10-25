@@ -4,8 +4,11 @@ import java.util.List;
 
 import javax.annotation.Resource;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
+import com.mycompany.webapp.controller.HomeController;
 import com.mycompany.webapp.dao.BoardDao;
 import com.mycompany.webapp.dto.Board;
 import com.mycompany.webapp.dto.Pager;
@@ -24,8 +27,11 @@ public class BoardService {
 		return boardDao.selectByPage(pager);
 	}
 	
-	public Board getBoard(int bno) {
+	public Board getBoard(int bno, boolean hit) {
 		log.info("실행");
+		if(hit) {
+			boardDao.updateBhitcount(bno);
+		}
 		return boardDao.selectByBno(bno);
 	}
 	
@@ -49,3 +55,11 @@ public class BoardService {
 		boardDao.deleteByBno(bno);
 	}
 }
+
+
+
+
+
+
+
+

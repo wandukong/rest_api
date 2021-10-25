@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.mycompany.webapp.dto.Member;
+import com.mycompany.webapp.security.JwtUtil;
 import com.mycompany.webapp.service.MemberService;
 import com.mycompany.webapp.service.MemberService.JoinResult;
 
@@ -67,14 +68,23 @@ public class MemberController {
 			// spring security에서 아이디랑 비밀번호가 맞지 않은 경우 BadCredentialsException 발생
 		}
 		
-		//spring security 사용자 인증
-		UsernamePasswordAuthenticationToken token = new UsernamePasswordAuthenticationToken(mid, mpassword);
-		Authentication authentication  = authenticationManager.authenticate(token);
+		/*
+		 * spring security 사용자 인증
+		 */
+		// 아이디와 패스워드를 통해 토큰을 만든다
+		UsernamePasswordAuthenticationToken token = new UsernamePasswordAuthenticationToken(mid, mpassword); 
+		// 아이디와 패스워드를 통해 만든 토큰을 통해 인증을 진행하여 성공 여부를 갖는다. 실패하면 401 에러를 발생시킨다.
+		Authentication authentication  = authenticationManager.authenticate(token); 
 		SecurityContext securityContext = SecurityContextHolder.getContext();
 		securityContext.setAuthentication(authentication);
 		
+		// 사용자 권한 얻기
+		String authority = authentication.getAuthorities().iterator().next().toString();
+		
 		Map<String, String> map = new HashMap<>();
 		map.put("result", "sucess");
+		map.put("mid", mid);
+		map.put("jwt", JwtUtil.createToken(mid, authority));
 		return map;
 	}
 	

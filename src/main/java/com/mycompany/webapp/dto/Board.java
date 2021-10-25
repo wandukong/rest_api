@@ -17,5 +17,5 @@ public class Board {
 	private MultipartFile battach;
 	private String battachoname;
 	private String battachsname;
-	private String battachtype;
+	private String battachtype;	
 }
