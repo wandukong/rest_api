@@ -176,7 +176,7 @@
 				
 				function authTest3() {
 					$.ajax({
-						url: "http://kosa3.iptime.org/board/test",
+						url: "http://kosa1.iptime.org:50208/board/test",
 						headers: {Authorization:`Bearer ${sessionStorage.getItem("jwt")}`},
 					}).done((data) => {
 						console.log(data);
