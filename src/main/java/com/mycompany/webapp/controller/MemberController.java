@@ -82,7 +82,7 @@ public class MemberController {
 		String authority = authentication.getAuthorities().iterator().next().toString();
 		
 		Map<String, String> map = new HashMap<>();
-		map.put("result", "sucess");
+		map.put("result", "success");
 		map.put("mid", mid);
 		map.put("jwt", JwtUtil.createToken(mid, authority));
 		return map;

@@ -104,7 +104,7 @@ public class BoardController {
 			board.setBattachtype(mf.getContentType());
 
 			try {
-				File file = new File("C:/hyundai_ite/upload_files/" + board.getBattachoname());
+				File file = new File("C:/hyundai_ite/upload_files/" + board.getBattachsname());
 				mf.transferTo(file);
 			} catch (Exception e) {
 			}
